@@ -27,4 +27,4 @@ repos:
     hooks:
       - id: mypy
         args: [--strict, --python-version=3.12]
-        exclude: ^test_
+        exclude: ^.*/test_
