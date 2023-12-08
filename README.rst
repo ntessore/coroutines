@@ -128,8 +128,8 @@ regular objects into awaitable variants of themselves.
 
 .. |coroutines.awaitable| replace:: ``coroutines.awaitable()``
 
-Create an awaitable variant of *obj*.  Returns a coroutine that returns *obj*
-and immediately calls |coroutines.sleep|_.
+Create an awaitable variant of *obj*.  Returns a coroutine that awaits
+|coroutines.sleep|_ before returning *obj*.
 
 
 .. _coroutines.aiterable:
@@ -140,8 +140,7 @@ and immediately calls |coroutines.sleep|_.
 .. |coroutines.aiterable| replace:: ``coroutines.aiterable()``
 
 Create an awaitable variant of an iterable.  Returns an asynchronous generator
-that yields every item in *iterable* and immediately calls |coroutines.sleep|_
-after each.
+that awaits |coroutines.sleep|_ before each item in *iterable*.
 
 
 .. _coroutines.arange:
@@ -153,8 +152,7 @@ after each.
 .. |coroutines.arange| replace:: ``coroutines.arange()``
 
 Create an awaitable variant of |range|_.  Returns an asynchronous generator
-that yields every integer in the range and immediately calls
-|coroutines.sleep|_ after each.
+that awaits |coroutines.sleep|_ before each number.
 
 
 .. |range| replace:: ``range()``
