@@ -34,6 +34,11 @@ source = "vcs"
 target-version = ["py312"]
 preview = true
 
+[tool.coverage.run]
+omit = [
+    "*/test_*",
+]
+
 [tool.coverage.report]
 exclude_also = [
     "if TYPE_CHECKING:",
