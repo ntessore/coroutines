@@ -1,18 +1,43 @@
-from collections.abc import Awaitable, Generator
-
 import pytest
 
 import coroutines
 
 
+class run:
+    """
+    Context manager to run a coroutine with a number of suspensions.
+    """
+
+    def __init__(self, coro, resume=0):
+        self.coro = coro
+        self.resume = resume
+
+    def __enter__(self):
+        __tracebackhide__ = True
+        for i in range(self.resume):
+            try:
+                self.coro.send(None)
+            except StopIteration:
+                raise AssertionError(
+                    f"coroutine suspended {i} times, expected {self.resume}"
+                )
+        try:
+            self.coro.send(None)
+        except StopIteration as exc:
+            return exc.value
+        else:
+            raise AssertionError(
+                f"coroutine did not complete after {self.resume} suspensions"
+            )
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        pass
+
+
 def test_sleep():
-    # sleep must be a generator containing a bare yield,
-    # wrapped in types.coroutine
-    s = coroutines.sleep()
-    assert isinstance(s, Generator)
-    assert s.send(None) is None
-    with pytest.raises(StopIteration):
-        s.send(None)
+    # make sure that sleep() suspends once
+    with run(coroutines.sleep(), 1) as result:
+        assert result is None
 
     # make sure that sleep() will suspend a coroutine
     async def f():
@@ -20,37 +45,18 @@ def test_sleep():
         return "finished"
 
     # step through the coroutine and make sure it is suspended once
-    coro = f()
-    assert coro.send(None) is None  # <- no stopiteration raised here!
-    with pytest.raises(StopIteration) as excinfo:
-        coro.send(None)
-    assert excinfo.value.value == "finished"
+    with run(f(), 1) as result:
+        assert result == "finished"
 
 
 def test_awaitable():
-    a = coroutines.awaitable()
-    assert isinstance(a, Awaitable)
-    a.close()
-
-    async def returns_none():
-        return await coroutines.awaitable()
-
-    coro = returns_none()
-    assert coro.send(None) is None
-    with pytest.raises(StopIteration) as excinfo:
-        coro.send(None)
-    assert excinfo.value.value is None
+    with run(coroutines.awaitable(), 1) as result:
+        assert result is None
 
     obj = object()
 
-    async def returns_obj():
-        return await coroutines.awaitable(obj)
-
-    coro = returns_obj()
-    assert coro.send(None) is None
-    with pytest.raises(StopIteration) as excinfo:
-        coro.send(None)
-    assert excinfo.value.value is obj
+    with run(coroutines.awaitable(obj), 1) as result:
+        assert result is obj
 
 
 def test_aiterable():
@@ -58,12 +64,8 @@ def test_aiterable():
         return [x async for x in coroutines.aiterable([1, 2, 3])]
 
     # coroutine shall await 3 times
-    coro = f()
-    for _ in range(3):
-        assert coro.send(None) is None
-    with pytest.raises(StopIteration) as excinfo:
-        coro.send(None)
-    assert excinfo.value.value == [1, 2, 3]
+    with run(f(), 3) as result:
+        assert result == [1, 2, 3]
 
 
 def test_arange():
@@ -71,12 +73,8 @@ def test_arange():
         return [x async for x in coroutines.arange(4, 0, -1)]
 
     # coroutine shall await 4 times
-    coro = f()
-    for _ in range(4):
-        assert coro.send(None) is None
-    with pytest.raises(StopIteration) as excinfo:
-        coro.send(None)
-    assert excinfo.value.value == [4, 3, 2, 1]
+    with run(f(), 4) as result:
+        assert result == [4, 3, 2, 1]
 
 
 def test_gather():
@@ -98,14 +96,9 @@ def test_gather():
 
     coro = coroutines.gather(f1(), f2(), f3())
     called = []
-    # gather will need 5 loops before returning
-    for _ in range(5):
-        coro.send(None)
-    with pytest.raises(StopIteration) as excinfo:
-        coro.send(None)
-    results = excinfo.value.value
-    assert results == [1, 2, 3]
-    assert called == [1, 2, 3, 1, 2, 1, 2, 2, 2]
+    with run(coro, 5) as result:
+        assert result == [1, 2, 3]
+        assert called == [1, 2, 3, 1, 2, 1, 2, 2, 2]
 
     # nested calling
     coro = coroutines.gather(
@@ -120,56 +113,31 @@ def test_gather():
     results = excinfo.value.value
     assert results == [[1, 2], [3]]
     assert called == [1, 2, 3, 1, 2, 1, 2, 2, 2]
+    # with run(coro) as result:
+    #     assert result == [[1, 2], [3]]
+    #     assert called == [1, 2, 3, 1, 2, 1, 2, 2, 2]
 
 
-def test_gather_close_on_error():
+def test_gather_error():
     async def first():
-        raise RuntimeError
+        raise ValueError
 
     async def second():
         return "second"
 
-    # close_on_error is true by default, all coroutines should be closed
+    # if first coroutine raises, the second coroutine is left running
     c1, c2 = first(), second()
-    coro = coroutines.gather(c1, c2)
-    try:
-        coro.send(None)
-    except RuntimeError:
-        pass
-    # second coroutine is closed
-    try:
-        c2.send(None)
-    except RuntimeError:
-        pass
-
-    # when close_on_error is false, the never_awaited coroutine emit a warning
-    c1, c2 = first(), second()
-    coro = coroutines.gather(c1, c2, close_on_error=False)
-    try:
-        coro.send(None)
-    except RuntimeError:
-        pass
-    # second coroutine is not closed and returns its value
-    try:
-        c2.send(None)
-    except StopIteration as exc:
-        assert exc.value == "second"
+    with pytest.raises(ValueError):
+        with run(coroutines.gather(c1, c2)):
+            pass
+    # second coroutine is running
+    with run(c2) as result:
+        assert result == "second"
 
 
 def test_run():
     async def f():
         await coroutines.sleep()
-        return "done"
-
-    assert coroutines.run(f()) == "done"
-
-
-def test_run_types_coroutine():
-    import types
-
-    @types.coroutine
-    def f():
-        yield
         return "done"
 
     assert coroutines.run(f()) == "done"

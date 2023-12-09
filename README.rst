@@ -83,7 +83,7 @@ Suspending coroutines
 .. _coroutines.sleep:
 .. parsed-literal::
 
-   *coroutine* coroutines.\ **sleep**\ () `# <coroutines.sleep_>`_
+   *awaitable* coroutines.\ **sleep**\ () `# <coroutines.sleep_>`_
 
 .. |coroutines.sleep| replace:: ``coroutines.sleep()``
 
@@ -97,22 +97,19 @@ Concurrent execution
 .. _coroutines.gather:
 .. parsed-literal::
 
-   *coroutine* coroutines.\ **gather**\ (*\*coros, close_on_error=True*) `# <coroutines.gather_>`_
+   *awaitable* coroutines.\ **gather**\ (*\*aws*) `# <coroutines.gather_>`_
 
 .. |coroutines.gather| replace:: ``coroutines.gather()``
 
-Run the coroutines *coros* concurrently.
+Run the given awaitables *aws* concurrently.
 
-Returns a coroutine that loops over *coros*, running each coroutine in turn
-until it is suspended or finished.  Execution is suspended after each pass over
-*coros*, so that other coroutines can run while the result of ``gather()`` is
-awaited.
+Returns a coroutine that loops over *aws*, resuming each awaitable in
+turn until it is suspended again or finished.  Execution is suspended
+after each pass over *aws*, so that other coroutines can run while the
+result of ``gather()`` is being awaited.
 
-The result of awaiting ``gather()`` is the aggregate list of returned values.
-
-If *close_on_error* is true, all coroutines are closed if an exception occurs
-while ``gather()`` is awaited.  Otherwise, the coroutines are left as they are
-when the exception is raised.
+The result of awaiting ``gather()`` is the aggregate list of awaited results
+from *aws* in the same order.
 
 
 Creating awaitables
@@ -124,7 +121,7 @@ regular objects into awaitable variants of themselves.
 .. _coroutines.awaitable:
 .. parsed-literal::
 
-   *coroutine* coroutines.\ **awaitable**\ (*obj=None*) `# <coroutines.awaitable_>`_
+   *awaitable* coroutines.\ **awaitable**\ (*obj=None*) `# <coroutines.awaitable_>`_
 
 .. |coroutines.awaitable| replace:: ``coroutines.awaitable()``
 
@@ -135,7 +132,7 @@ Create an awaitable variant of *obj*.  Returns a coroutine that awaits
 .. _coroutines.aiterable:
 .. parsed-literal::
 
-   *coroutine* coroutines.\ **aiterable**\ (*iterable*) `# <coroutines.aiterable_>`_
+   *awaitable* coroutines.\ **aiterable**\ (*iterable*) `# <coroutines.aiterable_>`_
 
 .. |coroutines.aiterable| replace:: ``coroutines.aiterable()``
 
@@ -146,8 +143,8 @@ that awaits |coroutines.sleep|_ before each item in *iterable*.
 .. _coroutines.arange:
 .. parsed-literal::
 
-   *coroutine* coroutines.\ **arange**\ (*stop*) `# <coroutines.arange_>`_
-   *coroutine* coroutines.\ **arange**\ (*start, stop[, step]*)
+   *awaitable* coroutines.\ **arange**\ (*stop*) `# <coroutines.arange_>`_
+   *awaitable* coroutines.\ **arange**\ (*start, stop[, step]*)
 
 .. |coroutines.arange| replace:: ``coroutines.arange()``
 
